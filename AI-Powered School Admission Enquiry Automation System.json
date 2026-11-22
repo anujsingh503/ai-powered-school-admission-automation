@@ -1,0 +1,733 @@
+{
+  "name": "AI-Powered School Admission Enquiry Automation System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admission-enquiry",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        48,
+        0
+      ],
+      "id": "fa9624c8-e0cf-4296-8f61-610a36552eda",
+      "name": "Receive Admission Enquiry",
+      "webhookId": "077671c2-fc9b-4a01-bab1-1c2ee05193d3"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/antigravity-preview-latest",
+          "mode": "list",
+          "cachedResultName": "Antigravity Agent Preview Latest"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\nYou are an intelligent AI assistant for a school's admission enquiry management system.\n\nYour task is to carefully analyze the parent's enquiry and generate an accurate classification and response.\n\nINPUT DETAILS:\n\nParent Name:\n{{ $json.body.parent_name }}\n\nPhone Number:\n{{ $json.body.phone }}\n\nEmail:\n{{ $json.body.email }}\n\nChild's Class:\n{{ $json.body.child_class }}\n\nParent Enquiry Message:\n{{ $json.body.message }}\n\nTASK 1: CATEGORY CLASSIFICATION\n\nClassify the enquiry into EXACTLY ONE of these four categories:\n\n1. Admission:\nChoose Admission when the parent asks about:\n- School admission or enrollment.\n- Admission procedure or application process.\n- Admission eligibility or age criteria.\n- Available seats or admission dates.\n- Admission requirements or documents.\n\n2. Fees:\nChoose Fees when the parent asks about:\n- Admission fees.\n- Monthly tuition fees.\n- Annual fees or fee structure.\n- Payment methods or payment deadlines.\n- Other school-related charges.\n\n3. Transport:\nChoose Transport when the parent asks about:\n- School bus facilities.\n- Bus routes or pickup and drop locations.\n- Transportation availability.\n- Transport charges.\n\n4. Other:\nChoose Other only when the enquiry does not match Admission, Fees, or Transport.\n\nIMPORTANT:\n- Read the actual Parent Enquiry Message carefully.\n- Identify the parent's main question.\n- Do not classify admission or fee-related questions as Other.\n- Do not classify based only on the child's class.\n- Select exactly one category.\n\nTASK 2: URGENCY CLASSIFICATION\n\nSelect EXACTLY ONE urgency level:\n\nHigh:\n- Immediate admission requirement.\n- Urgent issue requiring immediate attention.\n- Deadline is today or very close.\n- Parent explicitly requests an immediate response.\n\nMedium:\n- Parent needs information or follow-up within a few days.\n- Parent is planning admission soon.\n- Parent needs a timely response but has no immediate emergency.\n\nLow:\n- General information enquiry.\n- No immediate deadline or urgent requirement.\n- Routine questions about school facilities or admission.\n\nTASK 3: REASON\n\nWrite a short explanation describing:\n- Why this category was selected.\n- Why this urgency level was selected.\n\nTASK 4: PARENT REPLY\n\nGenerate a short, polite and professional acknowledgement message.\n\nRules:\n- Address the parent's actual enquiry.\n- Use the parent's name when available.\n- Do not invent school fees, admission dates, facilities, or other facts.\n- Do not promise a specific action or response time unless provided.\n- Keep the reply friendly and professional.\n\nOUTPUT FORMAT:\n\nReturn ONLY valid JSON in the following structure:\n\n{\n  \"category\": \"Admission\",\n  \"urgency\": \"Low\",\n  \"reason\": \"The parent is asking about school admission for Class 1 and has not mentioned any urgent deadline.\",\n  \"reply\": \"Thank you for your enquiry. Our admission team will assist you with the admission process for Class 1.\"\n}\n\nFINAL RULES:\n- The JSON values above are only an example of the required structure.\n- Determine category and urgency from the actual input every time.\n- Never use fixed category or urgency values.\n- Always return exactly four fields: category, urgency, reason, reply.\n- Category must be Admission, Fees, Transport, or Other.\n- Urgency must be High, Medium, or Low.\n- Return valid JSON only.\n- Do not include Markdown, explanations, or additional text.\n- If the enquiry message is empty, classify it as Other and ask the parent to provide enquiry details.\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "681e4e44-43f2-4d62-a23a-2c6b209e94f0",
+      "name": "Gemini AI – Classify Enquiry",
+      "retryOnFail": true,
+      "alwaysOutputData": false,
+      "notesInFlow": false,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "mC5AUn9ipFf6eHOV",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nreturn items.map(item => {\n\n  const data = item.json;\n\n  // Get Gemini response\n  const response = data.content.parts[0].text;\n\n  // Parse Gemini JSON\n  const result = JSON.parse(\n    response.replace(/```json|```/gi, \"\").trim()\n  );\n\n  return {\n    json: {\n      parent_name: data.parent_name,\n      phone: data.phone,\n      email: data.email,\n      child_class: data.child_class,\n      message: data.message,\n\n      category: result.category,\n      urgency: result.urgency,\n      reason: result.reason,\n      reply: result.reply\n    }\n  };\n\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -16
+      ],
+      "id": "5acbd1f3-f787-4543-867c-c740e49ba2a0",
+      "name": "Parse Gemini AI Response"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3c2633ce-e264-48c5-bcbe-50ab6b317d55",
+              "name": "urgency",
+              "value": "={{ $json.urgency }}",
+              "type": "string"
+            },
+            {
+              "id": "6ca1ffab-8604-4c6a-a543-f6c7db1a9243",
+              "name": "category",
+              "value": "={{ $json.category }}",
+              "type": "string"
+            },
+            {
+              "id": "7e29a88f-e896-4f81-a7a9-9d65c8c4f531",
+              "name": "parent_name",
+              "value": "={{ $('Receive Admission Enquiry').item.json.body.parent_name }}",
+              "type": "string"
+            },
+            {
+              "id": "5834b46f-73ad-4e50-bc7a-80792978b2f3",
+              "name": "phone",
+              "value": "={{ $('Receive Admission Enquiry').item.json.body.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "70f97032-6a98-4733-be88-5f69fa040918",
+              "name": "email",
+              "value": "={{ $('Receive Admission Enquiry').item.json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "f67c16fc-e03c-40cf-8ca7-2e654d36160a",
+              "name": "child_class",
+              "value": "={{ $('Receive Admission Enquiry').item.json.body.child_class }}",
+              "type": "string"
+            },
+            {
+              "id": "3c039449-d6c6-489a-997a-832076404a80",
+              "name": "message",
+              "value": "={{ $('Receive Admission Enquiry').item.json.body.message }}",
+              "type": "string"
+            },
+            {
+              "id": "de76d283-a67a-486e-8844-3be79b12fcf7",
+              "name": "reason",
+              "value": "={{ $json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "1cd349bb-5f7e-4289-87fc-dbe511cdc43b",
+              "name": "reply",
+              "value": "={{ $json.reply }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        736,
+        -16
+      ],
+      "id": "527218b1-54c8-4e2c-a89c-13b67fdfc654",
+      "name": "Prepare Enquiry Data"
+    },
+    {
+      "parameters": {
+        "tableId": "school_enquiry",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "parent_name",
+              "fieldValue": "={{ $json.parent_name }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "child_class",
+              "fieldValue": "={{ $json.child_class }}"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $json.message }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $json.category }}"
+            },
+            {
+              "fieldId": "urgency",
+              "fieldValue": "={{ $json.urgency }}"
+            },
+            {
+              "fieldId": "reason",
+              "fieldValue": "={{ $json.reason }}"
+            },
+            {
+              "fieldId": "reply",
+              "fieldValue": "={{ $json.reply }}"
+            },
+            {
+              "fieldId": "review_status",
+              "fieldValue": "=Approved"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "=NO ERROR"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        112,
+        368
+      ],
+      "id": "5cad13d7-a934-4823-82ea-34d79ed6a509",
+      "name": "Save Enquiry to Supabase",
+      "credentials": {
+        "supabaseApi": {
+          "id": "SURIjQAfQr6lp76a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e1085d6b-2a8d-400b-8038-ebfdc6dbd1f2",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ff252218-65ca-4551-b8cf-ea36b1228cc6",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "@",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "08fe041e-9e7c-4e9e-b933-19acef5075da",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        272,
+        368
+      ],
+      "id": "bf490984-7f26-41a9-9391-9018570d68d5",
+      "name": "Check Parent Email"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=School Enquiry Received – {{ $json.child_class }}",
+        "emailType": "text",
+        "message": "=Dear {{ $json.parent_name }},  Thank you for contacting our school.  We have successfully received your enquiry.  Enquiry Details: Parent Name: {{ $json.parent_name }} Child Class: {{ $json.child_class }} Category: {{ $json.category }} Your Message: {{ $json.message }}  {{ $json.reply }}  Thank you for your interest in our school.  Best Regards, School Admission Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        352
+      ],
+      "id": "41434fe6-c5b6-44f3-a71f-f3019376e8e1",
+      "name": "Send Parent Acknowledgement Email",
+      "webhookId": "a9f46be3-1322-4a2f-a611-21570d4fa202",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "pg6xKvdnJC2bamlC",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "school_enquiry",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Save Enquiry to Supabase').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "email_status",
+              "fieldValue": "=sent"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        656,
+        352
+      ],
+      "id": "c0b47f5c-be06-4f52-b14b-c95802a4832f",
+      "name": "Update Email Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "SURIjQAfQr6lp76a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "school_enquiry",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Save Enquiry to Supabase').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "email_status",
+              "fieldValue": "=Missing Email"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        576,
+        512
+      ],
+      "id": "fcb86ffa-5fc9-4594-80af-689c4cd43168",
+      "name": "Update Missing Email Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "SURIjQAfQr6lp76a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "dc0e5b62-4152-481b-a8c1-0d5480495ecb",
+              "leftValue": "={{ $json.urgency }}",
+              "rightValue": "High",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        352
+      ],
+      "id": "ec12434e-3a31-4763-9e30-b077076b0e15",
+      "name": "Check Enquiry Condition"
+    },
+    {
+      "parameters": {
+        "chatId": "5904377196",
+        "text": "=🚨 HIGH URGENCY SCHOOL ENQUIRY  Parent: {{ $json.parent_name }} Phone: {{ $json.phone }} Class: {{ $json.child_class }} Message: {{ $json.message }}  Please contact the parent.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1088,
+        336
+      ],
+      "id": "ba0c2ddd-b0ec-45b9-a172-74ae6cb98b11",
+      "name": "Send School Telegram Alert",
+      "webhookId": "2523f7e1-3fb8-4a36-b80a-d90eb3b8b7ca",
+      "credentials": {
+        "telegramApi": {
+          "id": "VcgyJ1fZmJBuu4Vl",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "school_enquiry",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Save Enquiry to Supabase').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "telegram_alert",
+              "fieldValue": "TRUE"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        336
+      ],
+      "id": "474a6b1e-bd9a-47b8-9902-5f8b48372f67",
+      "name": "Update Enquiry Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "SURIjQAfQr6lp76a",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const enquiry = $('Receive Admission Enquiry').first().json.body || {};\n\nconst error = $json.error || {};\n\nreturn {\n  json: {\n    parent_name: enquiry.parent_name || '',\n    phone: enquiry.phone || '',\n    email: enquiry.email || '',\n    child_class: enquiry.child_class || '',\n    message: enquiry.message || '',\n\n    category: 'Other',\n    urgency: 'Medium',\n\n    reason: 'Gemini API failed. Manual review required.',\n    reply: '',\n\n    review_status: 'Pending Review',\n    email_status: enquiry.email ? 'Pending Review' : 'Missing Email',\n    telegram_alert: false,\n\n    error_message: error.message || $json.message || 'Gemini API Error'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        176
+      ],
+      "id": "8cee679d-bc7a-4e22-a368-f48c3ee1ef87",
+      "name": "Handle Gemini API Error"
+    },
+    {
+      "parameters": {
+        "chatId": "5904377196",
+        "text": "=⚠️ SCHOOL ADMISSION AUTOMATION ERROR  🚨 Gemini AI API Failed  Parent Name: {{ $json.parent_name }} Phone: {{ $json.phone }} Email: {{ $json.email }} Child Class: {{ $json.child_class }}  Enquiry Message: {{ $json.message }}  Error Details: {{ $json.error_message }}  Review Status: Pending Review  Action Required: Please manually review this enquiry and contact the parent.  - School Admission Automation",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        176
+      ],
+      "id": "4d2f40cd-0f23-42be-9fc1-9af3c70a1028",
+      "name": "Send API Error Alert",
+      "webhookId": "a37e0c3d-d194-47b4-8227-b3c33cc0f78d",
+      "credentials": {
+        "telegramApi": {
+          "id": "VcgyJ1fZmJBuu4Vl",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "school_enquiry",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "parent_name",
+              "fieldValue": "={{ $json.parent_name }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "child_class",
+              "fieldValue": "={{ $json.child_class }}"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $json.message }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $json.category }}"
+            },
+            {
+              "fieldId": "urgency",
+              "fieldValue": "={{ $json.urgency }}"
+            },
+            {
+              "fieldId": "review_status",
+              "fieldValue": "={{ $json.review_status }}"
+            },
+            {
+              "fieldId": "error_message",
+              "fieldValue": "={{ $json.error_message }}"
+            },
+            {
+              "fieldId": "email_status",
+              "fieldValue": "={{ $json.email_status }}"
+            },
+            {
+              "fieldId": "telegram_alert",
+              "fieldValue": "={{ $json.telegram_alert }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        176
+      ],
+      "id": "cc87d7de-0093-4554-84d4-ddf399e79c4f",
+      "name": "Save API Error Record",
+      "credentials": {
+        "supabaseApi": {
+          "id": "SURIjQAfQr6lp76a",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Admission Enquiry": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI – Classify Enquiry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI – Classify Enquiry": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Gemini API Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini AI Response": {
+      "main": [
+        [
+          {
+            "node": "Prepare Enquiry Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Enquiry Data": {
+      "main": [
+        [
+          {
+            "node": "Save Enquiry to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Enquiry to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Check Parent Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Parent Email": {
+      "main": [
+        [
+          {
+            "node": "Send Parent Acknowledgement Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Missing Email Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Parent Acknowledgement Email": {
+      "main": [
+        [
+          {
+            "node": "Update Email Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Email Status": {
+      "main": [
+        [
+          {
+            "node": "Check Enquiry Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Missing Email Status": {
+      "main": [
+        [
+          {
+            "node": "Check Enquiry Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Enquiry Condition": {
+      "main": [
+        [
+          {
+            "node": "Send School Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send School Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Update Enquiry Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Gemini API Error": {
+      "main": [
+        [
+          {
+            "node": "Save API Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save API Error Record": {
+      "main": [
+        [
+          {
+            "node": "Send API Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "280d03e1-8b6a-4419-8bf6-c414d07f9e17",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fbf22b2e84855209db76807778282ae571cf4de59e0a9da7a29773489335e046"
+  },
+  "nodeGroups": [],
+  "id": "4La8osIe3mtbWVJ8",
+  "tags": []
+}
