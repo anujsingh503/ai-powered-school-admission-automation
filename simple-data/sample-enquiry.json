@@ -1,0 +1,11 @@
+{
+  "student_name": "Rahul Sharma",
+  "parent_name": "Amit Sharma",
+  "parent_email": "amit.sharma@example.com",
+  "phone": "9999999999",
+  "class_applied": "Class 1",
+  "admission_session": "2027-2028",
+  "enquiry_message": "I want to know about admission fees, school timings and admission process.",
+  "enquiry_source": "Website",
+  "enquiry_status": "New"
+}
